@@ -11,7 +11,7 @@ import("nanoid").then((module) => {
 const getAllUsers = async () => {
   return User.find();
 };
-const createUser = async ({ email, password }) => {
+const createUser = async ({ name, email, password }) => {
   try {
     const userExisting = await User.findOne({ email });
     if (userExisting) {
@@ -23,6 +23,7 @@ const createUser = async ({ email, password }) => {
     await sendVerificationEmail(email, uniqueCodeVerify);
 
     const newUser = new User({
+      name,
       email,
       password,
       verificationToken: uniqueCodeVerify,

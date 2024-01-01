@@ -33,6 +33,10 @@ const user = new Schema(
       type: Object,
       default: null,
     },
+    verificationToken: {
+      type: String,
+      required: [true, "Verify token is required"],
+    },
     userInfo: {
       type: Object,
       default: null,
@@ -70,7 +74,7 @@ user.methods.validPassword = function (password) {
 user.methods.generateAuthToken = function () {
   const token = jwt.sign(
     { _id: this._id, email: this.email },
-    process.env.JWT_SECRET,
+    process.env.SECRET_KEY,
     { expiresIn: "1h" }
   );
 

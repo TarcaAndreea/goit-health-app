@@ -9,7 +9,7 @@ const {
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const Jimp = require("jimp");
-const secret = process.env.SECRET;
+const secret = process.env.SECRET_KEY;
 const fs = require("fs");
 const path = require("path");
 const { sendVerificationEmail } = require("../services/schemas/emailService");
@@ -33,10 +33,11 @@ const getUsersController = async (req, res, next) => {
 
 const createUserController = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const { name, email, password } = req.body;
 
     console.log(email);
     const result = await createUser({
+      name,
       email,
       password,
     });
@@ -48,7 +49,7 @@ const createUserController = async (req, res, next) => {
     res.status(201).json({
       status: "succes",
       code: 201,
-      data: { email: result.email, token },
+      data: { name: result.name, email: result.email, token },
     });
   } catch (error) {
     res.status(404).json({
