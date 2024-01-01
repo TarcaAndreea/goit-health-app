@@ -1,8 +1,6 @@
-const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
 const { Schema, model } = require("mongoose");
 
-const dietarySchema = new Schema(
+const dietarySchema = Schema(
   {
     owner: {
       type: Schema.Types.ObjectId,
@@ -29,3 +27,9 @@ const dietarySchema = new Schema(
   },
   { versionKey: false, timestamps: true }
 );
+
+const Dietary = model("dietary", dietarySchema);
+
+module.exports = {
+  Dietary,
+};

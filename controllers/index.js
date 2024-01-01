@@ -13,7 +13,7 @@ const secret = process.env.SECRET;
 const fs = require("fs");
 const path = require("path");
 const { sendVerificationEmail } = require("../services/schemas/emailService");
-const { nanoid } = require("nanoid");
+//const { nanoid } = require("nanoid");
 const getUsersController = async (req, res, next) => {
   try {
     const results = await getAllUsers();

@@ -1,11 +1,13 @@
 const User = require("./schemas/usersSchema");
 const sgMail = require("@sendgrid/mail");
 const { sendVerificationEmail } = require("../services/schemas/emailService");
+const { Dietary } = require("./schemas/dietarySchema");
+const { Product } = require("./schemas/productSchema");
 let nanoid;
 import("nanoid").then((module) => {
   nanoid = module.nanoid;
 });
-c;
+
 const getAllUsers = async () => {
   return User.find();
 };
@@ -110,11 +112,132 @@ const getUserbyId = async (id) => {
   return user;
 };
 
+const createDietary = async (_id, payload) => {
+  const { date, products = [] } = payload;
+
+  const dietaryExist = await Dietary.findOne({ owner: _id })
+    .where("date")
+    .equals(date)
+    .populate("owner", "name email")
+    .populate({
+      path: "products.product",
+      select: "title calories",
+    });
+
+  if (dietaryExist) {
+    throw new Error("Dietary already exists");
+  }
+
+  return await Dietary.create({ owner: _id, date, products });
+};
+const deleteDietary = async (_id, productId, date) => {
+  const res = await Dietary.findOneAndUpdate(
+    { date: date, owner: _id },
+    { $pull: { products: { _id: productId } } },
+    { new: true }
+  )
+    .populate("owner", "name email")
+    .populate({
+      path: "products.product",
+      select: "title calories",
+    });
+
+  if (res === null) {
+    throw new Error("Wrong date");
+  }
+  return res;
+};
+const getDietary = async (_id, payload) => {
+  const { date } = payload;
+
+  const dietary = await Dietary.findOne({
+    owner: _id,
+    date: date,
+  })
+    .populate("owner", "_id name email")
+    .populate({
+      path: "products.product",
+      select: "title calories",
+    });
+
+  return dietary;
+};
+
+const updateDietary = async (userId, payload) => {
+  const { date, data } = payload;
+  const { product: _id, weightGrm } = data;
+
+  let products = null;
+
+  const dayInfo = await Dietary.findOne({
+    owner: userId,
+    date: date,
+  });
+
+  if (dayInfo) {
+    const checkedProduct = dayInfo.products.find((obj) =>
+      obj.product.equals(_id)
+    );
+
+    if (!checkedProduct) {
+      products = await Dietary.findOneAndUpdate(
+        {
+          owner: userId,
+          date: date,
+        },
+        {
+          $push: {
+            products: data,
+          },
+        },
+        { new: true }
+      )
+        .populate("owner", "name email")
+        .populate({
+          path: "products.product",
+          select: "title calories",
+        });
+      return products;
+    } else {
+      checkedProduct.weightGrm += weightGrm;
+    }
+
+    await dayInfo.save();
+    products = await Dietary.findOne(dayInfo)
+      .populate("owner", "name email")
+      .populate({
+        path: "products.product",
+        select: "title calories",
+      });
+  } else {
+    throw new Error("Wrong date");
+  }
+
+  return products;
+};
+
+const listProducts = async () => {
+  return await Product.find();
+};
+const updateUserAvatar = async (id, avatarURL) => {
+  const userData = await User.findByIdAndUpdate(id, { avatarURL });
+
+  return userData.avatarURL;
+};
+
 module.exports = {
   getAllUsers,
   createUser,
   updateUser,
   checkUserDB,
+  logOutUser,
   findUser,
   verifyEmail,
+  createDietary,
+  deleteDietary,
+  getDietary,
+  updateDietary,
+  listProducts,
+  updateUserAvatar,
+  getUserbyId,
 };
