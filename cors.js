@@ -1,9 +1,8 @@
 const corsOptions = {
-  origin: "*",
-  methods: "GET,POST",
+  origin: "http://localhost:3000",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  credentials: true,
   optionsSuccessStatus: 204,
 };
 
-module.exports = {
-  corsOptions,
-};
+app.use(cors(corsOptions));

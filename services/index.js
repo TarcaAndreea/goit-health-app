@@ -1,7 +1,7 @@
 const User = require("./schemas/usersSchema");
 const sgMail = require("@sendgrid/mail");
 const { sendVerificationEmail } = require("../services/schemas/emailService");
-const { Dietary } = require("./schemas/dietarySchema");
+const { myDailyInfo } = require("./schemas/dailyInfo");
 const { Product } = require("./schemas/productSchema");
 let nanoid;
 import("nanoid").then((module) => {
@@ -112,115 +112,54 @@ const getUserbyId = async (id) => {
   const user = await User.findById(id);
   return user;
 };
-
-const createDietary = async (_id, payload) => {
-  const { date, products = [] } = payload;
-
-  const dietaryExist = await Dietary.findOne({ owner: _id })
-    .where("date")
-    .equals(date)
-    .populate("owner", "name email")
-    .populate({
-      path: "products.product",
-      select: "title calories",
-    });
-
-  if (dietaryExist) {
-    throw new Error("Dietary already exists");
-  }
-
-  return await Dietary.create({ owner: _id, date, products });
-};
-const deleteDietary = async (_id, productId, date) => {
-  const res = await Dietary.findOneAndUpdate(
-    { date: date, owner: _id },
-    { $pull: { products: { _id: productId } } },
-    { new: true }
-  )
-    .populate("owner", "name email")
-    .populate({
-      path: "products.product",
-      select: "title calories",
-    });
-
-  if (res === null) {
-    throw new Error("Wrong date");
-  }
-  return res;
-};
-const getDietary = async (_id, payload) => {
-  const { date } = payload;
-
-  const dietary = await Dietary.findOne({
-    owner: _id,
-    date: date,
-  })
-    .populate("owner", "_id name email")
-    .populate({
-      path: "products.product",
-      select: "title calories",
-    });
-
-  return dietary;
-};
-
-const updateDietary = async (userId, payload) => {
-  const { date, data } = payload;
-  const { product: _id, weightGrm } = data;
-
-  let products = null;
-
-  const dayInfo = await Dietary.findOne({
-    owner: userId,
-    date: date,
+const getNotAllowedProducts = async ({ bloodType }) => {
+  const blood = [null, false, false, false, false];
+  blood[bloodType] = true;
+  const products = await Product.find({
+    groupBloodNotAllowed: { $all: [blood] },
   });
-
-  if (dayInfo) {
-    const checkedProduct = dayInfo.products.find((obj) =>
-      obj.product.equals(_id)
-    );
-
-    if (!checkedProduct) {
-      products = await Dietary.findOneAndUpdate(
-        {
-          owner: userId,
-          date: date,
-        },
-        {
-          $push: {
-            products: data,
-          },
-        },
-        { new: true }
-      )
-        .populate("owner", "name email")
-        .populate({
-          path: "products.product",
-          select: "title calories",
-        });
-      return products;
-    } else {
-      checkedProduct.weightGrm += weightGrm;
-    }
-
-    await dayInfo.save();
-    products = await Dietary.findOne(dayInfo)
-      .populate("owner", "name email")
-      .populate({
-        path: "products.product",
-        select: "title calories",
-      });
-  } else {
-    throw new Error("Wrong date");
-  }
-
   return products;
 };
-
-const listProducts = async () => {
-  return await Product.find();
+const notAllowedProductsObj = async (bloodType) => {
+  const notAllowedProductsArray = await getNotAllowedProducts(bloodType);
+  const arr = [];
+  notAllowedProductsArray.map(({ title }) => arr.push(title));
+  let notAllowedProductsAll = [...new Set(arr)];
+  let notAllowedProducts = [];
+  const message = ["You can eat everything"];
+  if (notAllowedProductsAll[0] === undefined) {
+    notAllowedProducts = message;
+  } else {
+    do {
+      const index = Math.floor(Math.random() * notAllowedProductsAll.length);
+      if (
+        notAllowedProducts.includes(notAllowedProductsAll[index]) ||
+        notAllowedProducts.includes("undefined")
+      ) {
+        break;
+      } else {
+        notAllowedProducts.push(notAllowedProductsAll[index]);
+      }
+    } while (notAllowedProducts.length !== 5);
+  }
+  if (notAllowedProductsAll.length === 0) {
+    notAllowedProductsAll = message;
+  }
+  const result = { notAllowedProductsAll, notAllowedProducts };
+  return result;
 };
-const updateUserAvatar = async (id, avatarURL) => {
+const caloriesValue = async (productName, productWeight) => {
+  const product = await Product.findOne({
+    title: productName,
+  });
+  if (!product) {
+    NotFound("Product name is not correct");
+  }
+  const { calories, weight } = product;
+  const productCalories = Math.round((calories / weight) * productWeight);
+  return productCalories;
+};
+const listProducts = async (id, avatarURL) => {
   const userData = await User.findByIdAndUpdate(id, { avatarURL });
 
   return userData.avatarURL;
@@ -234,11 +173,9 @@ module.exports = {
   logOutUser,
   findUser,
   verifyEmail,
-  createDietary,
-  deleteDietary,
-  getDietary,
-  updateDietary,
   listProducts,
-  updateUserAvatar,
+  caloriesValue,
+  getNotAllowedProducts,
+  notAllowedProductsObj,
   getUserbyId,
 };

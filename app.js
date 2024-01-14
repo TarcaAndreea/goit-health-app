@@ -37,7 +37,7 @@ app.use((err, _, res, __) => {
   });
 });
 
-const PORT = process.env.PORT_SERVER || 5000;
+const PORT = process.env.PORT_SERVER || 3000;
 const URL_DB = process.env.DB_URL;
 
 mongoose

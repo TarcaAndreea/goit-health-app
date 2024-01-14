@@ -5,6 +5,10 @@ const {
   checkUserDB,
   findUser,
   verifyEmail,
+  caloriesValue,
+  getNotAllowedProducts,
+  notAllowedProductsObj,
+  listProducts,
 } = require("../services/index");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
@@ -13,7 +17,7 @@ const secret = process.env.SECRET_KEY;
 const fs = require("fs");
 const path = require("path");
 const { sendVerificationEmail } = require("../services/schemas/emailService");
-//const { nanoid } = require("nanoid");
+//const nanoid = require("nanoid");
 const getUsersController = async (req, res, next) => {
   try {
     const results = await getAllUsers();
@@ -88,7 +92,8 @@ const loginUserController = async (req, res, next) => {
 };
 const logoutUserController = async (req, res, _id) => {
   try {
-    const user = await getUserbyId();
+    const userId = req.user._id;
+    const user = await getUserbyId(userId);
     if (!user) {
       return res.status(401).json({ message: "Not authorized" });
     }
@@ -291,6 +296,84 @@ const resendVerificationEmailController = async (req, res, next) => {
     console.log(error);
   }
 };
+const getDailyRateController = async (req, res, next) => {
+  try {
+    console.log(req.body);
+    const dailyRate = services.calculateDailyRate(req.body);
+    console.log(req.body.bloodType);
+    const { notAllowedProducts, notAllowedProductsAll } =
+      await services.notAllowedProductsObj(req.body.bloodType);
+    return res
+      .status(200)
+      .json({ dailyRate, notAllowedProducts, notAllowedProductsAll });
+  } catch (error) {
+    res.status(404).json({
+      status: "error",
+      code: 404,
+    });
+    next(error);
+  }
+};
+const notAllowedProducts = async (bloodType) => {
+  try {
+    const notAllowedProductsArray = await services.findBloodType(bloodType);
+    const arr = [];
+    notAllowedProductsArray.map(({ title }) => arr.push(title.ua));
+    let notAllowedProductsAll = [...new Set(arr)];
+    let notAllowedProducts = [];
+    const message = ["You can eat everything"];
+    if (notAllowedProductsAll[0] === undefined) {
+      notAllowedProducts = message;
+    } else {
+      do {
+        const index = Math.floor(Math.random() * notAllowedProductsAll.length);
+        if (
+          notAllowedProducts.includes(notAllowedProductsAll[index]) ||
+          notAllowedProducts.includes("undefined")
+        ) {
+          break;
+        } else {
+          notAllowedProducts.push(notAllowedProductsAll[index]);
+        }
+      } while (notAllowedProducts.length !== 5);
+    }
+    if (notAllowedProductsAll.length === 0) {
+      notAllowedProductsAll = message;
+    }
+    const result = { notAllowedProductsAll, notAllowedProducts };
+    return result;
+  } catch (error) {
+    res.status(404).json({
+      status: "error",
+      code: 404,
+    });
+    next(error);
+  }
+};
+
+const getDailyRateUserController = async (req, res) => {
+  try {
+    const { user } = req;
+    const dailyRate = services.calculateDailyRate(user.infouser);
+    console.log(dailyRate);
+    const { notAllowedProducts, notAllowedProductsAll } =
+      await services.notAllowedProductsObj(user.infouser.bloodType);
+    user.infouser = {
+      ...user.infouser,
+      dailyRate,
+      notAllowedProducts,
+      notAllowedProductsAll,
+    };
+    await User.findByIdAndUpdate(user._id, user);
+    return res.status(200).json({ data: user.infouser });
+  } catch (error) {
+    res.status(404).json({
+      status: "error",
+      code: 404,
+    });
+  }
+};
+
 module.exports = {
   getAll,
   getUsersController,
@@ -301,5 +384,8 @@ module.exports = {
   findUserController,
   uploadAvatarController,
   verifyEmailController,
+  getDailyRateUserController,
+  notAllowedProducts,
+  getDailyRateController,
   resendVerificationEmailController,
 };
